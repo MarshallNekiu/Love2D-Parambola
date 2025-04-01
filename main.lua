@@ -1,14 +1,16 @@
---Parámbola
+
+--NOTES
+--	Collision
+--		Rectangle is just a line with extra.
 
 function love.load()
 	math.vec2 = require("util.math.vec2")
-	
 	math.snappedf = function (f, dec)
 		local mult = 10 ^ dec
 		return f >= 0 and math.floor(f * mult + 0.5) / mult or math.ceil(f * mult - 0.5) / mult
 	end
 	
-	require("demo.clash.lc")
+	require("demo.clash.circle.line.demo")
 	load()
 end
 

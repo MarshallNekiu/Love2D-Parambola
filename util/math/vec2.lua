@@ -68,7 +68,7 @@ function vec2.normalize(v)
     return v
 end
 
-function vec2.snappedf(v, dec)
+function vec2.snapf(v, dec)
     local mult = 10^dec
     v.x = v.x >= 0 and math.floor(v.x * mult + 0.5) / mult or math.ceil(v.x * mult - 0.5) / mult
     v.y = v.y >= 0 and math.floor(v.y * mult + 0.5) / mult or math.ceil(v.y * mult - 0.5) / mult

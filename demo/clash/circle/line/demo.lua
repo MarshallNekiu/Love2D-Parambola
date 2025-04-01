@@ -1,7 +1,8 @@
 
-local vec2 = math.vec2
+local V2 = math.vec2
 
 local Viewport = require("src.scene.viewport")
+local gph = love.graphics
 
 local Body = require("src.body.body")
 local Point = require("src.body.shape.point")
@@ -17,19 +18,22 @@ local VP = {
 	dbg2 = Viewport(1280 + 64, 80 + 480, 480, 480)
 }
 
-local mouse = vec2(0, 0)
+local mouse = V2(0, 0)
 local grabber = Point(0, 0)
 
 local player = Circle(0, -256, 96)
+local po, pv = player.origin, player.velocity
 local line = Line(0, 0, 512)
+local lo, lv = line.origin, line.velocity
 
 local img = {}
 
+--FUNCTION LOAD
 function load()
 	img = {
-		whale = love.graphics.newImage("img/whale.png"),
-		arrow = love.graphics.newImage("img/arrow.png"),
-		luv = love.graphics.newImage("img/luv.png")
+		whale = gph.newImage("img/whale.png"),
+		arrow = gph.newImage("img/arrow.png"),
+		luv = gph.newImage("img/luv.png")
 	}
 	
 	VP.main.gui, VP.ctrl.ui = Body(), Body()
@@ -57,10 +61,10 @@ function load()
   VP.main.gui:addShape(Circle(VP.main.w - 192, 0, 64))
   
   for i = 1, 3 do
-  	vec2.translate(VP.main.gui.shape[i].origin, vec2(VP.main.x + 96, VP.main.y + VP.main.h - 96))
+  	V2.translate(VP.main.gui.shape[i].origin, V2(VP.main.x + 96, VP.main.y + VP.main.h - 96))
   end
   
-  player.velocity.y = -500
+  pv.y = -500
   
   player.vDamp = 0.996
   player.tDamp = 0.996
@@ -69,6 +73,7 @@ function load()
   line.tDamp = 0.95
 end
 
+--FUNCTION TOUCHPRESSED
 function love.touchpressed(id, x, y, dx, dy, pressure)
 	local idx = tonumber(string.sub(tostring(id), 13)) or 0
 	
@@ -77,7 +82,7 @@ function love.touchpressed(id, x, y, dx, dy, pressure)
 	for i = 1, #VP.main.gui.shape do
 		if grabber:checkCollision(VP.main.gui.shape[i]).collide then
 			VP.main.query.button = i
-			player.velocity.y = i == 3 and -400 or player.velocity.y
+			pv.y = i == 3 and -400 or pv.y
 			break
 		end
 	end
@@ -114,10 +119,11 @@ function love.touchpressed(id, x, y, dx, dy, pressure)
   mouse.x, mouse.y = x, y
 end
 
+--FUNCTION TOUCHMOVED
 function love.touchmoved(id, x, y, dx, dy, pressure)
 	local idx = tonumber(string.sub(tostring(id), 13)) or 0
 	
-	player.velocity.x = (VP.main.query.button == 1) and -400 or (VP.main.query.button == 2) and 400 or player.velocity.y
+	pv.x = (VP.main.query.button == 1) and -400 or (VP.main.query.button == 2) and 400 or pv.y
 	
 	mouse.x, mouse.y = VP.main:toCanvas(x, y)
 	
@@ -127,9 +133,9 @@ function love.touchmoved(id, x, y, dx, dy, pressure)
 	end
   
   if VP.ctrl.query.button == 1 then
-		player.origin.x, player.origin.y = VP.main:toWorld(x, y)
+		po.x, po.y = VP.main:toWorld(x, y)
 	elseif VP.ctrl.query.button == 2 then
-		line.origin.x, line.origin.y = VP.main:toWorld(x, y)
+		lo.x, lo.y = VP.main:toWorld(x, y)
 	end
 	
 	local cso = function (shape) return VP.ctrl.ui.shape[shape].origin end
@@ -138,9 +144,9 @@ function love.touchmoved(id, x, y, dx, dy, pressure)
 	grabber.origin.x, grabber.origin.y = VP.main:toWorld(x, y)
   
   if VP.ctrl.query.button == 3 then
-  	player.velocity.x, player.velocity.y = (grabber.origin.x - player.origin.x), (grabber.origin.y - player.origin.y)
+  	pv.x, pv.y = (grabber.origin.x - po.x), (grabber.origin.y - po.y)
   elseif VP.ctrl.query.button == 4 then
-  	line.velocity.x, line.velocity.y = (grabber.origin.x - line.origin.x), (grabber.origin.y - line.origin.y)
+  	lv.x, lv.y = (grabber.origin.x - lo.x), (grabber.origin.y - lo.y)
   elseif VP.ctrl.query.button == 5 then
   	player.radius = math.abs(mouse.x - cso(5).x) * 0.5
   elseif VP.ctrl.query.button == 6 then
@@ -164,6 +170,7 @@ function love.touchmoved(id, x, y, dx, dy, pressure)
   mouse.x, mouse.y = x, y
 end
 
+--FUNCTION TOUCHRELEASED
 function love.touchreleased(id, x, y, dx, dy, pressure)
 	local idx = tonumber(string.sub(tostring(id), 16)) or 0
 	
@@ -179,6 +186,7 @@ function love.touchreleased(id, x, y, dx, dy, pressure)
   mouse.x, mouse.y = x, y
 end
 
+--FUNCTION UPDATE
 function update(delta)
 	VP.dbg1.zoom = 1 + math.sin(tick.currentTime) * 0.5
 	VP.dbg2.zoom = 1 + math.sin(tick.currentTime) * 0.5
@@ -207,30 +215,31 @@ function update(delta)
   end
 end
 
+--FUNCTION TICKUPDATE
 function tickUpdate(delta)
 	local collision = player:checkCollision(line)
   if collision.collide then
   	if VP.ctrl.ui.shape[12].mode == "fill" then return true end
-    player.velocity = collision.velocity
+    pv = collision.velocity
     player.torque = collision.torque
     player.time = 0
   end
   
-  player.velocity.x = player.velocity.x - (player.velocity.x - player.velocity.x * 1)--player.vDamp)
-  player.velocity.y = player.velocity.y + (((not collision.collide and 800 * delta or 0)))
-  player.velocity.y = (player.velocity.y - (player.velocity.y - player.velocity.y * 1))--player.vDamp))
+  pv.x = pv.x - (pv.x - pv.x * 1)--player.vDamp)
+  pv.y = pv.y + (((not collision.collide and 800 * delta or 0)))
+  pv.y = (pv.y - (pv.y - pv.y * 1))--player.vDamp))
   
-  player.origin.x = player.origin.x + player.velocity.x * delta
-  player.origin.y = player.origin.y + player.velocity.y * delta
+  po.x = po.x + pv.x * delta
+  po.y = po.y + pv.y * delta
   
   player.torque = player.torque - (player.torque - player.torque * 1)--player.tDamp)
   player.angle = player.angle + player.torque * delta
   
-  line.velocity.x = line.velocity.x - (line.velocity.x - line.velocity.x * line.vDamp)
-  line.velocity.y = line.velocity.y - (line.velocity.y - line.velocity.y * line.vDamp)
+  lv.x = lv.x - (lv.x - lv.x * line.vDamp)
+  lv.y = lv.y - (lv.y - lv.y * line.vDamp)
   
-  line.origin.x = line.origin.x + line.velocity.x * delta
-  line.origin.y = line.origin.y + line.velocity.y * delta
+  lo.x = lo.x + lv.x * delta
+  lo.y = lo.y + lv.y * delta
   
   line.torque = line.torque - (line.torque - line.torque * line.tDamp)
   line.angle = line.angle + line.torque * delta
@@ -238,45 +247,50 @@ function tickUpdate(delta)
   player.time = player.time + delta
 end
 
+--FUNCTION DRAW
 function draw()
-	love.graphics.print(vec2.dot(vec2.fromAngle(line.angle + math.pi / 2), vec2.normalize(vec2(player:getCenter()) - vec2(line:getCenter()))), 640, 640)
+	gph.print(V2.dot(V2.normalize(V2(po)), V2(0, 1)) .. "\n" .. V2.dot(V2(1, 0), V2.normalize(V2(po))), 700, 700)
+	gph.print(V2.dot(V2.fromAngle(line.angle + math.pi / 2), V2.normalize(V2(player:getCenter()) - V2(line:getCenter()))), 640, 640)
 	
 	--VP.main.gui:draw()
 	for i = 1, 3 do
 		local s = VP.main.gui.shape[i]
-		love.graphics.draw(img.arrow, s.origin.x, s.origin.y, s.angle, 0.5, 0.5, 96, 96)
+		gph.draw(img.arrow, s.origin.x, s.origin.y, s.angle, 0.5, 0.5, 96, 96)
 	end
 	
-	--VP.main.ox, VP.main.oy = -player.origin.x + VP.main.w * 0.5, -player.origin.y + VP.main.h * 0.5
+	--VP.main.ox, VP.main.oy = -po.x + VP.main.w * 0.5, -po.y + VP.main.h * 0.5
 	
   VP.main:drawBegin()
+  --gph.setBackgroundColor(0.5, 0.5, 0.5, 1)
   
-  for i = 1,1 do
-	  local l = vec2(player.origin * vec2(1, 1))
-	  local a = vec2.fromAngle(line.angle, 512)
-		vec2.mirror(l, -1, 1, line.angle)
-		love.graphics.setColor(1, 1, 1, 0.8)
-		love.graphics.line(player.origin.x, player.origin.y, l.x, l.y)
-		--love.graphics.line(32, -128, l.x, -l.y)
-		love.graphics.line(a.x, a.y, -a.x, -a.y)
-		love.graphics.setColor(1, 1, 1, 1)
+  for i = 1,0 do
+	  local l = V2(po * V2(1, 1))
+	  local a = V2.fromAngle(line.angle, 512)
+		V2.mirror(l, -1, 1, line.angle)
+		gph.setColor(1, 1, 1, 0.8)
+		gph.line(po.x, po.y, l.x, l.y)
+		--gph.line(32, -128, l.x, -l.y)
+		gph.line(a.x, a.y, -a.x, -a.y)
+		gph.setColor(1, 1, 1, 1)
 	end
   
-  local wmouse = vec2(VP.main:toWorld(mouse.x, mouse.y))
+  local wmouse = V2(VP.main:toWorld(mouse.x, mouse.y))
   
-  love.graphics.draw(img.whale, player.origin.x, player.origin.y, player.angle, player.radius / (174 * 0.5), (player.radius / (174 * 0.5)), 174 * 0.5, 174 * 0.5)
+  gph.draw(img.whale, po.x, po.y, player.angle, player.radius / (174 * 0.5), (player.radius / (174 * 0.5)), 174 * 0.5, 174 * 0.5)
   
-  love.graphics.print(string.format("(%d, %d)", -VP.main.ox, VP.main.oy), -VP.main.ox + VP.main.w * 0.5, -VP.main.oy + 16)
-  love.graphics.line(-VP.main.ox, 0, -VP.main.ox + VP.main.w, 0)
-  love.graphics.line(0, -VP.main.oy, 0, -VP.main.oy + VP.main.h)
-  love.graphics.circle("line", wmouse.x, wmouse.y, 128)
+  gph.print(string.format("(%d, %d)", po.x, -po.y), -VP.main.ox + VP.main.w * 0.5, -VP.main.oy + 16)
+  gph.setColor(1, 1, 1, 0.5)
+  gph.line(-VP.main.ox, 0, -VP.main.ox + VP.main.w, 0)
+  gph.line(0, -VP.main.oy, 0, -VP.main.oy + VP.main.h)
+  gph.setColor(1, 1, 1, 1)
+  gph.circle("line", wmouse.x, wmouse.y, 128)
 	
   --player:draw()
   
-  love.graphics.line(player.origin.x, player.origin.y, wmouse.x, wmouse.y)
-  love.graphics.setColor(1, 1, 0, 0.85)
-  love.graphics.line(player.origin.x, player.origin.y, player.origin.x + player.velocity.x, player.origin.y + player.velocity.y)
-  love.graphics.setColor(1, 1, 1, 1)
+  gph.line(po.x, po.y, wmouse.x, wmouse.y)
+  gph.setColor(1, 1, 0, 0.85)
+  gph.line(po.x, po.y, po.x + pv.x, po.y + pv.y)
+  gph.setColor(1, 1, 1, 1)
   
   line:draw()
 	
@@ -284,56 +298,56 @@ function draw()
   
   VP.ctrl:drawBegin()
   
-  local cmouse = vec2(VP.ctrl:toWorld(mouse.x, mouse.y))
+  local cmouse = V2(VP.ctrl:toWorld(mouse.x, mouse.y))
   local cso = function (shape) return VP.ctrl.ui.shape[shape].origin end
   
-  love.graphics.circle("line", cmouse.x, cmouse.y, 96)
+  gph.circle("line", cmouse.x, cmouse.y, 96)
 	
-	love.graphics.setColor(1, 1, 0, 1)
-	love.graphics.line(cso(3).x, cso(3).y, cso(3).x + (player.velocity.x * 0.35) / math.pi, cso(3).y + (player.velocity.y * 0.35) / math.pi)
-	love.graphics.line(cso(4).x, cso(4).y, cso(4).x + (line.velocity.x * 0.35) / math.pi, cso(4).y + (line.velocity.y * 0.35) / math.pi)
-	love.graphics.setColor(1, 1, 1, 1)
+	gph.setColor(1, 1, 0, 1)
+	gph.line(cso(3).x, cso(3).y, cso(3).x + (pv.x * 0.35) / math.pi, cso(3).y + (pv.y * 0.35) / math.pi)
+	gph.line(cso(4).x, cso(4).y, cso(4).x + (lv.x * 0.35) / math.pi, cso(4).y + (lv.y * 0.35) / math.pi)
+	gph.setColor(1, 1, 1, 1)
   
-  love.graphics.circle("line", cso(5).x, cso(5).y, (player.radius * 0.35) / math.pi)
-	love.graphics.circle("line", cso(6).x, cso(5).y, (line.length * 0.35) / math.pi)
+  gph.circle("line", cso(5).x, cso(5).y, (player.radius * 0.35) / math.pi)
+	gph.circle("line", cso(6).x, cso(5).y, (line.length * 0.35) / math.pi)
   
-  love.graphics.arc("line", cso(7).x, cso(7).y, 64, -math.pi / 2, math.mod(player.angle, math.pi * 2) - math.pi / 2)
-	love.graphics.arc("line", cso(8).x, cso(8).y, 64, -math.pi / 2, math.mod(line.angle, math.pi * 2) - math.pi / 2)
+  gph.arc("line", cso(7).x, cso(7).y, 64, -math.pi / 2, math.mod(player.angle, math.pi * 2) - math.pi / 2)
+	gph.arc("line", cso(8).x, cso(8).y, 64, -math.pi / 2, math.mod(line.angle, math.pi * 2) - math.pi / 2)
 	
-	love.graphics.arc("line", cso(9).x, cso(9).y, 16 + (math.abs(player.torque) * 12) / math.pi, -math.pi / 2, math.mod(player.torque, math.pi * 2) - math.pi / 2)
-	love.graphics.arc("line", cso(10).x, cso(10).y,  16 + (math.abs(line.torque) * 12) / math.pi, -math.pi / 2, math.mod(line.torque, math.pi * 2) - math.pi / 2)
+	gph.arc("line", cso(9).x, cso(9).y, 16 + (math.abs(player.torque) * 12) / math.pi, -math.pi / 2, math.mod(player.torque, math.pi * 2) - math.pi / 2)
+	gph.arc("line", cso(10).x, cso(10).y,  16 + (math.abs(line.torque) * 12) / math.pi, -math.pi / 2, math.mod(line.torque, math.pi * 2) - math.pi / 2)
   
   local color = {{0, 0, 1}, {1, 0, 0}, {1, 1, 1}}
   local color_idx = {1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 3, 3}
   for i, v in ipairs(VP.ctrl.ui.shape) do
-  	love.graphics.setColor(color[color_idx[i]][1], color[color_idx[i]][2], color[color_idx[i]][3], 1)
+  	gph.setColor(color[color_idx[i]][1], color[color_idx[i]][2], color[color_idx[i]][3], 1)
   	local s = VP.ctrl.ui.shape[i]
-  	love.graphics.circle(s.mode, s.origin.x, s.origin.y, s.radius)
+  	gph.circle(s.mode, s.origin.x, s.origin.y, s.radius)
   end
-  love.graphics.setColor(1, 1, 1, 1)
+  gph.setColor(1, 1, 1, 1)
   
-  love.graphics.push()
-  love.graphics.translate(128 + 512, 96)
-  love.graphics.scale(3, 3)
+  gph.push()
+  gph.translate(128 + 512, 96)
+  gph.scale(3, 3)
   for i = 0, 4 do
-	  love.graphics.print(i, 0, (256 / 3) * i)
+	  gph.print(i, 0, (256 / 3) * i)
 	end
-  love.graphics.pop()
+  gph.pop()
   
   VP.ctrl:drawEnd()
   
   VP.dbg1:drawBegin()
   
-  love.graphics.circle("line", mouse.x - VP.dbg1.x, mouse.y - VP.dbg1.y, 48)
+  gph.circle("line", mouse.x - VP.dbg1.x, mouse.y - VP.dbg1.y, 48)
   
-  love.graphics.setColor(1, 1, 1, 0.6)
-  love.graphics.line(240, 0, 240, 480)
-  love.graphics.line(0, 240, 480, 240)
-  love.graphics.setColor(1, 1, 1, 1)
+  gph.setColor(1, 1, 1, 0.6)
+  gph.line(240, 0, 240, 480)
+  gph.line(0, 240, 480, 240)
+  gph.setColor(1, 1, 1, 1)
   
-  love.graphics.translate(240, 240)
+  gph.translate(240, 240)
   
-  love.graphics.scale(VP.dbg1.zoom, VP.dbg1.zoom)
+  gph.scale(VP.dbg1.zoom, VP.dbg1.zoom)
   
   player:debugCollision(line)
   
@@ -341,20 +355,20 @@ function draw()
   
   VP.dbg2:drawBegin()
   
-  love.graphics.circle("line", mouse.x - VP.dbg2.x, mouse.y - VP.dbg2.y, 64)
+  gph.circle("line", mouse.x - VP.dbg2.x, mouse.y - VP.dbg2.y, 64)
   
-  love.graphics.setColor(1, 1, 1, 0.6)
-  love.graphics.line(240, 0, 240, 480)
-  love.graphics.line(0, 240, 480, 240)
-  love.graphics.setColor(1, 1, 1, 1)
+  gph.setColor(1, 1, 1, 0.6)
+  gph.line(240, 0, 240, 480)
+  gph.line(0, 240, 480, 240)
+  gph.setColor(1, 1, 1, 1)
   
-  love.graphics.translate(240, 240)
+  gph.translate(240, 240)
   
-  love.graphics.scale(VP.dbg2.zoom, VP.dbg2.zoom)
+  gph.scale(VP.dbg2.zoom, VP.dbg2.zoom)
   
   line:debugCollision(player)
   
   VP.dbg2:drawEnd()
   
-  love.graphics.print(tick.frame .. "\n" .. tick.currentTime .. "\n" .. love.timer.getFPS(), 48, 96)
+  gph.print(tick.frame .. "\n" .. tick.currentTime .. "\n" .. love.timer.getFPS(), 48, 96)
 end
